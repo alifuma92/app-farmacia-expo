@@ -1,0 +1,7 @@
+export { default as Homepage } from './Homepage'
+export { default as OrdinaProdotti } from './OrdinaProdotti'
+export { default as PrenotaAppuntamenti } from './PrenotaAppuntamenti'
+export { default as Farmacie } from './Farmacie'
+export { default as Farmacia } from './Farmacia'
+export { default as Articoli } from './Articoli'
+export { default as Articolo } from './Articolo'
