@@ -1,5 +1,5 @@
-import React, {useState, useRef} from 'react'
-import { StyleSheet, Text, View, ScrollView, TouchableOpacity } from 'react-native'
+import React, {useState, useRef, useEffect} from 'react'
+import { StyleSheet, Text, View, ScrollView, TouchableOpacity, ActivityIndicator } from 'react-native'
 
 // import custom components
 import { ScreenWrapper, ScreenHeader, ListItem, Button, Filter } from '../Components'
@@ -9,6 +9,9 @@ import { Theme } from '../Config'
 
 // import fake api
 import { Services } from '../FakeServer'
+
+// import icons
+import { Ionicons } from '@expo/vector-icons'; 
 
 // import bottom sheet component
 import {
@@ -22,24 +25,54 @@ const PrenotaAppuntamenti = () => {
   // can be: []
   // or:
   // [{label: 'category', value: 'esami'}, ...]
+  const [loading, setLoading] = useState(true) 
+  const [services, setServices] = useState([])
+  const [filteredServices, setFilteredService] = useState([])
   const [filters, setFilters] = useState([])
-  const [categories, setCategories] = useState(['esami', 'trattamenti', 'fisioterapia'])
+  const [categories, setCategories] = useState(['esame', 'trattamento', 'fisioterapia'])
+
+  useEffect(() => {
+    setTimeout(() => {
+      setServices(Services)
+      setFilteredService(Services)
+      setLoading(false)
+    }, 3000)
+  }, [])
+
+  // aggiorno la lista dei servizi ogni volta che cambiano i filtri
+  useEffect(() => {
+    // filtra i risultati
+    if(filters.length === 0){
+      setFilteredService(services)
+    } else {
+      const results = services.filter(service => filters.some(filter => filter.value === service.category))
+      setFilteredService(results)
+    }
+  }, [filters])
 
   // refs
   const bottomSheetModalRef = useRef(null);
 
   const removeFilter = (index) => {
+    // elimino il filtro
     let actual_filters = [...filters]
-    actual_filters.splice(index)
+    actual_filters.splice(index, 1)
     setFilters(actual_filters)
   }
 
   const setFilter = (item) => {
+    // aggiornando i filtri selezionati
     let actual_filters = [...filters]
     actual_filters.push({label: 'category', value: item})
     setFilters(actual_filters)
     // close modal filters
     bottomSheetModalRef.current?.dismiss()
+  }
+
+  const isFilterSelected = (filter) => {
+    // filter = {label: 'category', value: 'XXX'}
+    const search = filters.filter((item) => filter.label === 'category' && filter.value === item.value)
+    return search.length > 0 ? true : false
   }
 
   return (
@@ -82,30 +115,37 @@ const PrenotaAppuntamenti = () => {
           {/* LISTA SERVIZI */}
           <View style={{paddingHorizontal: 10}}>
             {
-              Services.length > 0
+              loading 
               ?
-                Services.map((item, index) => (
-                  <TouchableOpacity
-                    key={index} 
-                    style={{marginBottom: 10}}
-                    onPress={() => alert('vai a ...')}
-                  >
-                    <ListItem
-                      title={item.title}
-                      category={item.category}
-                    />
-                  </TouchableOpacity>
-                ))
+                <ActivityIndicator />
               :
-                <Text>
-                  Al momento non è possibile prenotare nessun servizio/esame.
-                </Text>
+                filteredServices.length > 0
+                ?
+                  filteredServices.map((item, index) => (
+                    <TouchableOpacity
+                      key={index} 
+                      style={{marginBottom: 10}}
+                      onPress={() => alert('vai a ...')}
+                    >
+                      <ListItem
+                        title={item.title}
+                        category={item.category}
+                      />
+                    </TouchableOpacity>
+                  ))
+                :
+                  <Text>
+                    Al momento non è possibile prenotare nessun servizio/esame.
+                  </Text>
             }
           </View>
         </ScrollView>
 
         {/* FLOATING BUTTON FILTRI */}
-        <View style={styles.floatingButtonContainer}>
+        {
+          !loading && filteredServices.length > 0
+          &&
+          <View style={styles.floatingButtonContainer}>
             <Button
               activeOpacity={0.8}
               title="Filtra"
@@ -114,8 +154,9 @@ const PrenotaAppuntamenti = () => {
               size="large"
               action={() => bottomSheetModalRef.current?.present()}
             />
-        </View>
-
+          </View>
+        }
+        
         {/* BOTTOM SHEET MODAL FILTERS */}
         <BottomSheetModal
           ref={bottomSheetModalRef}
@@ -129,17 +170,44 @@ const PrenotaAppuntamenti = () => {
           </Text>
           <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
             {
-              categories.map((item, index) => (
-                <TouchableOpacity
-                  onPress={() => setFilter(item)} 
-                  key={index} 
-                  style={{marginBottom: 10,backgroundColor: Theme.colors.secondary, paddingHorizontal: 10, paddingVertical: 10, borderRadius: Theme.borderRadius.base}}
-                >
-                  <Text style={{color: Theme.colors.base_text, fontSize: 14, fontWeight: 'bold'}}>
-                    {item}
-                  </Text>
-                </TouchableOpacity>
-              ))
+              categories.map((item, index) => {
+                const isSelected = isFilterSelected({label: 'category', value: item})
+                return (
+                  <TouchableOpacity
+                    disabled={isSelected}
+                    onPress={() => setFilter(item)} 
+                    key={index} 
+                    style={{
+                      flexDirection: 'row',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                      marginBottom: 10,
+                      backgroundColor: Theme.colors.secondary, 
+                      paddingHorizontal: 10, 
+                      height: 40, 
+                      borderRadius: Theme.borderRadius.base,
+                      ...isSelected && {opacity: 0.5}
+                    }}
+                  >
+                    <View style={{flex: 1}}>
+                      <Text numberOfLines={1} style={{color: Theme.colors.base_text, fontSize: 14, fontWeight: 'bold'}}>
+                        {item}
+                      </Text>
+                    </View>
+                    {
+                      isSelected 
+                      &&
+                      <View style={{width: 40, flexDirection: 'row', justifyContent: 'flex-end'}}>
+                        <Ionicons
+                          name="checkmark"
+                          size={24}
+                          color={Theme.colors.primary}
+                        /> 
+                      </View>
+                    }
+                  </TouchableOpacity>
+                )
+              })
             }
           </BottomSheetScrollView>
         </BottomSheetModal>
